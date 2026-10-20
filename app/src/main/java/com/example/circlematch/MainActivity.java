@@ -1,4 +1,3 @@
-
 package com.example.circlematch;
 
 import android.app.Activity;
@@ -14,8 +13,9 @@ public class MainActivity extends Activity {
         WebView webView = new WebView(this);
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
-        webView.loadUrl("https://raw.githubusercontent.com/Raj00809/CircleMatchAndroidProject/main/circle_match_puzzle_original.html");
+        settings.setDomStorageEnabled(true);
 
+        webView.loadUrl("file:///android_asset/circle_match_puzzle_original.html");
         setContentView(webView);
     }
 }
