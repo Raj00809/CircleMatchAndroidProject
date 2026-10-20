@@ -1,0 +1,123 @@
+circle_match_puzzle_original.html <!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Circle Match Puzzle</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#071521;color:#fff;font-family:Arial,sans-serif;overflow:hidden;touch-action:none}
+  #app{height:100vh;display:flex;flex-direction:column;align-items:center}
+  header{width:100%;max-width:700px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+  h1{font-size:25px;margin:0;text-shadow:0 0 12px #6cb6ff}
+  .pill{background:#102a43;border:1px solid #315b84;border-radius:18px;padding:8px 13px}
+  #game{width:min(96vw,680px);height:min(78vh,680px);display:block}
+  #msg{position:fixed;bottom:18px;background:#102a43;border:1px solid #315b84;border-radius:16px;padding:10px 16px;font-size:14px;text-align:center}
+  button{border:0;border-radius:12px;padding:9px 13px;background:#214d76;color:#fff;font-size:14px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="pill">Moves: <b id="moves">0</b></div>
+    <h1>Circle Match</h1>
+    <button onclick="newGame()">नया गेम</button>
+  </header>
+  <canvas id="game"></canvas>
+  <div id="msg">गेंद को टैप करें → पास वाले सर्कल पर जाएँ। एक रंग की गेंदें साथ करें।</div>
+</div>
+<script>
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+let W,H,cx,cy,R,balls=[],moves=0,selected=null;
+const colors=['#ff405f','#ffd21a','#29e35b','#2496ff','#f4f7fb'];
+
+function resize(){
+  const d=devicePixelRatio||1, rect=c.getBoundingClientRect();
+  W=rect.width; H=rect.height; c.width=W*d;c.height=H*d;ctx.setTransform(d,0,0,d,0,0);
+  cx=W/2;cy=H/2;R=Math.min(W,H)*.34; draw();
+}
+window.addEventListener('resize',resize);
+
+function newGame(){
+  moves=0; selected=null; document.getElementById('moves').textContent=moves;
+  balls=[];
+  // Three overlapping rings
+  const rings=[
+    {x:-R*.42,y:-R*.02},{x:R*.42,y:-R*.02},{x:0,y:R*.34}
+  ];
+  for(let ring=0;ring<3;ring++){
+    for(let i=0;i<8;i++){
+      let a=(i/8)*Math.PI*2 + (ring*.55);
+      let col=(i+ring*3)%colors.length;
+      balls.push({ring,a,col});
+    }
+  }
+  draw();
+}
+
+function ringCenter(r){
+  const off=[[-R*.42,-R*.02],[R*.42,-R*.02],[0,R*.34]][r];
+  return {x:cx+off[0],y:cy+off[1]};
+}
+function pos(b){
+  const q=ringCenter(b.ring);
+  const rr=R*.62;
+  return {x:q.x+Math.cos(b.a)*rr,y:q.y+Math.sin(b.a)*rr};
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // background
+  let g=ctx.createRadialGradient(cx,cy,10,cx,cy,Math.max(W,H)*.65);
+  g.addColorStop(0,'#102d43');g.addColorStop(1,'#06131d');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const rings=[
+    {x:-R*.42,y:-R*.02},{x:R*.42,y:-R*.02},{x:0,y:R*.34}
+  ];
+  rings.forEach((o,ri)=>{
+    for(let k=0;k<3;k++){
+      ctx.beginPath();ctx.arc(cx+o.x,cy+o.y,R*(.48+k*.105),0,Math.PI*2);
+      ctx.strokeStyle=selected!==null && ri===selected.ring?'#ffc32b':'#6389ad';
+      ctx.lineWidth=selected!==null && ri===selected.ring?3:2;ctx.stroke();
+    }
+  });
+  balls.forEach((b,i)=>{
+    const p=pos(b),rad=Math.max(8,Math.min(14,W*.022));
+    ctx.beginPath();ctx.arc(p.x,p.y,rad+(selected===b?4:0),0,Math.PI*2);
+    ctx.fillStyle=colors[b.col];ctx.shadowColor=colors[b.col];ctx.shadowBlur=selected===b?18:8;ctx.fill();ctx.shadowBlur=0;
+    if(selected===b){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();}
+  });
+}
+function nearestBall(x,y){
+  let best=null,dist=1e9;
+  for(const b of balls){const p=pos(b),d=Math.hypot(x-p.x,y-p.y);if(d<dist){dist=d;best=b;}}
+  return dist<28?best:null;
+}
+c.addEventListener('pointerdown',e=>{
+  const r=c.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  const b=nearestBall(x,y);
+  if(!b)return;
+  if(selected===b){selected=null;draw();return}
+  if(selected){
+    // Move selected one ring clockwise/counter-clockwise among the three.
+    const old=selected.ring;
+    let target=(old+1)%3;
+    b.ring===target ? null : null;
+    selected.ring=target;
+    selected.a += .18;
+    moves++;document.getElementById('moves').textContent=moves;
+    selected=null;checkWin();draw();
+  }else selected=b,draw();
+});
+function checkWin(){
+  // Win when each color's balls are concentrated into one ring.
+  let ok=true;
+  for(let col=0;col<colors.length;col++){
+    const counts=[0,0,0];
+    balls.filter(b=>b.col===col).forEach(b=>counts[b.ring]++);
+    if(Math.max(...counts)<3) ok=false;
+  }
+  if(ok) setTimeout(()=>alert('🎉 शानदार! Level पूरा हुआ!\\nMoves: '+moves),100);
+}
+newGame();resize();
+</script>
+</body>
+</html>
